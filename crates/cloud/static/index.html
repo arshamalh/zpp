@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>peakpilot</title>
+<style>
+  :root {
+    --bg: #eef3f6; --card: #fff; --line: #dfe6eb; --text: #1f2a37; --muted: #71808f; --soft: #f4f7f9;
+    --blue: #0b3fd6; --solar: #ef9a2d; --battery: #1596ad; --charger: #22b14c; --load: #64788c;
+    --grid: #3c4a5c; --nomination: #e8702a; --limit: #d9534f; --ok: #16a34a; --warn: #d98a00;
+  }
+  :root[data-theme=dark] {
+    --bg: #0f1419; --card: #171e26; --line: #2a3542; --text: #e6edf3; --muted: #8b98a8; --soft: #1f2833;
+    --blue: #6b93ff; --grid: #9fb0c3; --load: #8fa3b8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  a { color: inherit; text-decoration: none; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
+
+  #rail { position: fixed; inset: 0 auto 0 0; width: 76px; background: var(--card); border-right: 1px solid var(--line); padding-top: 58px; }
+  #rail a { display: block; padding: 10px 2px; text-align: center; font-size: 10.5px; color: var(--muted); }
+  #rail a.on, #rail a:hover { color: var(--blue); }
+  #rail svg { display: block; margin: 0 auto 3px; width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  #top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 14px; height: 48px; padding: 0 22px 0 98px; background: var(--card); border-bottom: 1px solid var(--line); }
+  #top .logo { font-size: 20px; font-weight: 800; color: var(--blue); letter-spacing: -.5px; margin-right: auto; }
+  #top select { font: inherit; color: inherit; background: var(--soft); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+  #page { margin-left: 76px; padding: 16px 22px 40px; max-width: 1400px; }
+
+  h1 { font-size: 22px; font-weight: 600; margin: 2px 0 12px; }
+  h1 span { color: var(--muted); font-weight: 400; }
+  h2 { font-size: 15px; font-weight: 600; margin: 0 0 8px; }
+  h3 { font-size: 18px; font-weight: 600; margin: 22px 0 10px; }
+  .tabs { display: flex; gap: 10px; margin-bottom: 12px; }
+  .tabs a { background: var(--card); padding: 6px 22px 6px 12px; border-radius: 6px; font-size: 13px; }
+  .tabs a.on { color: var(--blue); }
+  .card { background: var(--card); border-radius: 6px; padding: 14px 16px; margin-bottom: 12px; }
+  .row { display: grid; gap: 12px; margin-bottom: 12px; }
+  .row .card { margin: 0; }
+  .tiles { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+  .side { grid-template-columns: minmax(170px, 1fr) 3fr; }
+  .tile { display: block; }
+  .k { color: var(--muted); font-size: 12px; }
+  .v { font-size: 22px; font-weight: 600; color: var(--blue); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .v small { font-size: 12px; font-weight: 500; }
+  .tile .k.t { color: var(--text); font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+  .sidev { display: flex; flex-direction: column; justify-content: space-between; min-height: 150px; }
+
+  .bar { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; font-size: 13px; }
+  .bar button.on { color: var(--blue); font-weight: 600; }
+  .bar .nav { font-size: 17px; padding: 0 6px; }
+  .bar .nav:disabled { color: var(--line); cursor: default; }
+  .split { display: grid; grid-template-columns: 76px 1fr; gap: 6px; align-items: center; }
+  .modes button { display: block; width: 100%; padding: 7px 0; font-size: 11px; color: var(--muted); }
+  .modes button.on { color: var(--blue); font-weight: 600; }
+  .chips { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .chip { padding: 5px 12px; border-radius: 4px; background: var(--soft); text-align: center; font-size: 11px; color: var(--muted); }
+  .chip b { display: block; font-size: 15px; font-variant-numeric: tabular-nums; color: var(--c, var(--text)); }
+  .chart { display: block; width: 100%; height: auto; }
+  .chart text { font-size: 12px; fill: var(--muted); }
+
+  #tip { position: fixed; z-index: 9; display: none; pointer-events: none; min-width: 180px; padding: 8px 12px; border-radius: 6px; background: var(--card); box-shadow: 0 4px 18px #0003; font-size: 12px; }
+  #tip div { display: flex; justify-content: space-between; gap: 18px; }
+  #tip b { display: block; text-align: center; margin-bottom: 4px; }
+
+  .flow { fill: none; stroke-width: 2; }
+  .flow.live { stroke-dasharray: 7 9; animation: dash 1s linear infinite; }
+  .flow.rev { animation-direction: reverse; }
+  @keyframes dash { to { stroke-dashoffset: -16; } }
+  @media (prefers-reduced-motion: reduce) { .flow.live { animation: none; } }
+  .node { fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .flowv { font-size: 15px; font-weight: 600; text-anchor: middle; fill: currentColor; }
+
+  .group { font-size: 16px; font-weight: 600; margin: 14px 0 6px; color: var(--c, var(--text)); }
+  .asset { display: grid; grid-template-columns: minmax(150px, 1fr) 2fr auto; gap: 12px; align-items: center; width: 100%; padding: 8px 12px; margin-bottom: 6px; background: var(--soft); border-radius: 4px; text-align: left; font-size: 13px; }
+  .asset dl { display: grid; grid-template-columns: auto 1fr; gap: 1px 24px; margin: 0; }
+  .asset dt { color: var(--muted); }
+  .asset dd { margin: 0; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--limit); margin-right: 6px; }
+  .dot.ok { background: var(--ok); }
+  .dot.warn { background: var(--warn); }
+  .ticks { display: flex; gap: 1px; height: 22px; margin: 10px 0 4px; }
+  .ticks i { flex: 1; background: var(--line); }
+  .ticks i.ok { background: var(--ok); }
+  .ticks i.warn { background: var(--warn); }
+  .dl { display: inline-block; background: var(--blue); color: #fff; padding: 4px 12px; border-radius: 3px; font-size: 12px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  td, th { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; }
+  td.n, th.n { text-align: right; }
+  .mono { font-family: ui-monospace, monospace; }
+
+  .filters { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 13px; margin-bottom: 10px; }
+  .filters label { display: flex; gap: 5px; align-items: center; cursor: pointer; }
+  .filters .views { margin-left: auto; display: flex; gap: 10px; }
+  .filters .views .on { color: var(--blue); font-weight: 600; }
+  .billrow { display: grid; grid-template-columns: 1.2fr repeat(6, 1fr); gap: 8px; padding: 7px 8px; margin-bottom: 6px; border-radius: 3px; color: #fff; background: var(--c); font-size: 12.5px; text-align: center; }
+  .billrow > div { background: #ffffff1f; border-radius: 3px; padding: 4px; min-height: 40px; }
+  .billrow > div.blank { background: none; }
+  .billrow b { display: block; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .billhead { padding: 10px; margin-bottom: 6px; border-radius: 3px; background: var(--blue); color: #fff; text-align: center; font-weight: 600; }
+  .billtotal { width: 170px; margin-left: auto; padding: 8px; border-radius: 3px; background: var(--blue); color: #fff; text-align: center; }
+  .billtotal b { display: block; font-size: 16px; }
+
+  .tree { display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 12px 0; }
+  .tree .lvl { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; position: relative; }
+  .tree .lvl::before { content: ""; position: absolute; top: -22px; left: 50%; height: 22px; border-left: 1px solid var(--muted); }
+  .tree .lvl:first-child::before { display: none; }
+  .tree .box { min-width: 120px; padding: 8px 12px; border: 1px solid var(--c, var(--blue)); border-radius: 3px; color: var(--c, var(--blue)); text-align: center; font-size: 12px; font-weight: 600; background: var(--card); }
+  .tree .box small { display: block; color: var(--muted); font-weight: 400; }
+
+  .donuts { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; }
+  .donut { text-align: center; font-size: 12px; font-weight: 600; }
+  .donut svg { width: 150px; height: 150px; display: block; margin: 6px auto; }
+  .legend { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; color: var(--muted); font-weight: 400; max-width: 240px; }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; background: var(--c); margin-right: 3px; }
+  .empty { color: var(--muted); padding: 40px; text-align: center; }
+
+  @media (max-width: 760px) {
+    #rail { position: fixed; inset: auto 0 0 0; width: auto; display: flex; justify-content: space-around; padding: 0; border-right: 0; border-top: 1px solid var(--line); z-index: 6; }
+    #rail a { flex: 1; }
+    #top { padding-left: 16px; }
+    #page { margin-left: 0; padding: 12px 16px 80px; }
+    .side { grid-template-columns: 1fr; }
+    .sidev { min-height: 0; }
+    .asset { grid-template-columns: 1fr; }
+    .billrow { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<nav id="rail"></nav>
+<header id="top">
+  <span class="logo">peakpilot.</span>
+  <select id="site" aria-label="Location"></select>
+  <button id="theme" title="Toggle dark mode" aria-label="Toggle dark mode">☾</button>
+</header>
+<main id="page"><div class="empty">Waiting for gateways…</div></main>
+<div id="tip"></div>
+<script src="/app.js"></script>
+</body>
+</html>
