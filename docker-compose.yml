@@ -1,0 +1,51 @@
+# Full local stack: broker + Postgres + cloud + three simulated sites.
+#   docker compose up --build      then open http://localhost:8080
+#   docker compose stop cloud      -> watch gateways fall back to local control
+#   docker compose start cloud     -> watch them recover
+x-gateway: &gateway
+  image: peakpilot:dev
+  pull_policy: never   # built locally by the `cloud` service, never on a registry
+  command: ["/usr/local/bin/gateway-sim"]
+  depends_on: [mosquitto]
+  restart: unless-stopped
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports: ["1883:1883"]
+    volumes: ["./deploy/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro"]
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: peakpilot
+      POSTGRES_PASSWORD: peakpilot
+      POSTGRES_DB: peakpilot
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U peakpilot"]
+      interval: 2s
+      retries: 20
+
+  cloud:
+    build: .
+    image: peakpilot:dev
+    environment:
+      MQTT_HOST: mosquitto
+      DATABASE_URL: postgres://peakpilot:peakpilot@postgres/peakpilot
+      RUST_LOG: info,tower_http=warn
+    ports: ["8080:8080"]
+    depends_on:
+      mosquitto: { condition: service_started }
+      postgres: { condition: service_healthy }
+    restart: unless-stopped
+
+  gw-depot:
+    <<: *gateway
+    environment: { SITE_ID: depot-utrecht, PROFILE: depot, SEED: "7", MQTT_HOST: mosquitto, DROP_ACK_PCT: "20" }
+  gw-campus:
+    <<: *gateway
+    environment: { SITE_ID: campus-eindhoven, PROFILE: campus, SEED: "42", MQTT_HOST: mosquitto }
+  gw-cold:
+    <<: *gateway
+    environment: { SITE_ID: cold-tilburg, PROFILE: cold-storage, SEED: "99", MQTT_HOST: mosquitto }

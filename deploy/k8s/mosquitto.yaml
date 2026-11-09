@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mosquitto-config
+  namespace: peakpilot
+data:
+  mosquitto.conf: |
+    listener 1883
+    allow_anonymous true
+    persistence false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mosquitto
+  namespace: peakpilot
+  labels: { app.kubernetes.io/name: mosquitto }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: mosquitto }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: mosquitto }
+    spec:
+      containers:
+        - name: mosquitto
+          image: eclipse-mosquitto:2
+          ports: [{ name: mqtt, containerPort: 1883 }]
+          volumeMounts:
+            - { name: config, mountPath: /mosquitto/config }
+          readinessProbe:
+            tcpSocket: { port: mqtt }
+          resources:
+            requests: { cpu: 20m, memory: 16Mi }
+            limits: { memory: 64Mi }
+      volumes:
+        - name: config
+          configMap: { name: mosquitto-config }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mosquitto
+  namespace: peakpilot
+spec:
+  selector: { app.kubernetes.io/name: mosquitto }
+  ports: [{ name: mqtt, port: 1883, targetPort: mqtt }]

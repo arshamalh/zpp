@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloud-config
+  namespace: peakpilot
+data:
+  MQTT_HOST: mosquitto
+  REPLAN_EVERY_PTUS: "4"
+  SCHEDULE_VALIDITY_PTUS: "8"
+  LOG_JSON: "true"
+  RUST_LOG: info,tower_http=warn
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloud
+  namespace: peakpilot
+  labels: { app.kubernetes.io/name: peakpilot-cloud }
+spec:
+  # ONE replica on purpose: every replica would receive every MQTT message and
+  # dispatch duplicate commands. Scaling out needs MQTT 5 shared subscriptions
+  # ($share/cloud/...) plus per-site ownership of planning. See README.
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app.kubernetes.io/name: peakpilot-cloud }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: peakpilot-cloud }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: /metrics
+    spec:
+      terminationGracePeriodSeconds: 15
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532   # distroless "nonroot"; must be numeric for runAsNonRoot
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: cloud
+          image: ghcr.io/arshamalh/peakpilot:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/usr/local/bin/peakpilot-cloud"]
+          envFrom:
+            - configMapRef: { name: cloud-config }
+          env:
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: postgres, key: DATABASE_URL } }
+          ports: [{ name: http, containerPort: 8080 }]
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 50m, memory: 32Mi }
+            limits: { memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloud
+  namespace: peakpilot
+spec:
+  selector: { app.kubernetes.io/name: peakpilot-cloud }
+  ports: [{ name: http, port: 80, targetPort: http }]

@@ -1,0 +1,76 @@
+# Simulated sites. In real life these run on hardware at the customer, not in the cluster.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gw-depot
+  namespace: peakpilot
+spec:
+  replicas: 1
+  selector: { matchLabels: { app.kubernetes.io/name: gw-depot } }
+  template:
+    metadata: { labels: { app.kubernetes.io/name: gw-depot, app.kubernetes.io/component: gateway-sim } }
+    spec:
+      containers:
+        - name: gateway
+          image: ghcr.io/arshamalh/peakpilot:latest
+          command: ["/usr/local/bin/gateway-sim"]
+          env:
+            - { name: SITE_ID, value: depot-utrecht }
+            - { name: PROFILE, value: depot }
+            - { name: SEED, value: "7" }
+            - { name: MQTT_HOST, value: mosquitto }
+            - { name: DROP_ACK_PCT, value: "20" }
+            - { name: LOG_JSON, value: "true" }
+          resources:
+            requests: { cpu: 10m, memory: 8Mi }
+            limits: { memory: 64Mi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gw-campus
+  namespace: peakpilot
+spec:
+  replicas: 1
+  selector: { matchLabels: { app.kubernetes.io/name: gw-campus } }
+  template:
+    metadata: { labels: { app.kubernetes.io/name: gw-campus, app.kubernetes.io/component: gateway-sim } }
+    spec:
+      containers:
+        - name: gateway
+          image: ghcr.io/arshamalh/peakpilot:latest
+          command: ["/usr/local/bin/gateway-sim"]
+          env:
+            - { name: SITE_ID, value: campus-eindhoven }
+            - { name: PROFILE, value: campus }
+            - { name: SEED, value: "42" }
+            - { name: MQTT_HOST, value: mosquitto }
+            - { name: LOG_JSON, value: "true" }
+          resources:
+            requests: { cpu: 10m, memory: 8Mi }
+            limits: { memory: 64Mi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gw-cold
+  namespace: peakpilot
+spec:
+  replicas: 1
+  selector: { matchLabels: { app.kubernetes.io/name: gw-cold } }
+  template:
+    metadata: { labels: { app.kubernetes.io/name: gw-cold, app.kubernetes.io/component: gateway-sim } }
+    spec:
+      containers:
+        - name: gateway
+          image: ghcr.io/arshamalh/peakpilot:latest
+          command: ["/usr/local/bin/gateway-sim"]
+          env:
+            - { name: SITE_ID, value: cold-tilburg }
+            - { name: PROFILE, value: cold-storage }
+            - { name: SEED, value: "99" }
+            - { name: MQTT_HOST, value: mosquitto }
+            - { name: LOG_JSON, value: "true" }
+          resources:
+            requests: { cpu: 10m, memory: 8Mi }
+            limits: { memory: 64Mi }

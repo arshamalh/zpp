@@ -1,0 +1,12 @@
+# kubectl apply -k deploy/k8s
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - mosquitto.yaml
+  - postgres.yaml
+  - cloud.yaml
+  - gateways.yaml
+images:
+  - name: ghcr.io/arshamalh/peakpilot
+    newTag: latest

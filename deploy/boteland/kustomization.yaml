@@ -1,0 +1,30 @@
+# peakpilot on the boteland k3s cluster, exposed at https://peakpilot.boteland.com.
+# Deploy with `make deploy` from the repo root (see the "Boteland cluster" section
+# of the Makefile); don't apply this directory by hand, the image tag is filled in there.
+#
+# Self-contained on purpose: everything lives in the `peakpilot` namespace
+# (broker, Postgres + its data, cloud, gateways, TLS secret). The only things it
+# uses from outside the namespace are cluster-wide: the bundled Traefik ingress
+# controller and the `letsencrypt-prod` ClusterIssuer. `make undeploy` deletes
+# the namespace and with it every trace, including the database volume.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../k8s
+  - ingress.yaml
+images:
+  # No registry: `make image-import` loads the image straight into the node's
+  # containerd, so pods find it locally (imagePullPolicy IfNotPresent).
+  - name: ghcr.io/arshamalh/peakpilot
+    newName: peakpilot
+    newTag: __TAG__
+patches:
+  # The base ships a demo Secret with a placeholder password. Here the Secret
+  # is created by `make db-secret` with a random password instead.
+  - patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: postgres
+        namespace: peakpilot

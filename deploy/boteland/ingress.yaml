@@ -1,0 +1,26 @@
+# https://peakpilot.boteland.com -> cloud:80. TLS terminates at Traefik; the
+# certificate is issued by cert-manager through the cluster-wide
+# letsencrypt-prod ClusterIssuer (HTTP-01, so DNS must point at the node first).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cloud
+  namespace: peakpilot
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts: [peakpilot.boteland.com]
+      secretName: peakpilot-tls
+  rules:
+    - host: peakpilot.boteland.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cloud
+                port:
+                  name: http
