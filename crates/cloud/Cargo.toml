@@ -1,6 +1,37 @@
 [package]
 name = "cloud"
-version = "0.1.0"
-edition = "2024"
+description = "Cloud side of the EMS: MQTT ingestion, planning, command dispatch, HTTP API, dashboard."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "peakpilot-cloud"
+path = "src/main.rs"
 
 [dependencies]
+ems-core.workspace = true
+anyhow.workspace = true
+chrono.workspace = true
+clap.workspace = true
+rumqttc.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true
+
+axum = "0.8"
+metrics = "0.24"
+metrics-exporter-prometheus = { version = "0.17", default-features = false }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "chrono", "uuid", "json", "migrate", "macros"] }
+tower-http = { version = "0.6", features = ["trace"] }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
+
+[lints]
+workspace = true

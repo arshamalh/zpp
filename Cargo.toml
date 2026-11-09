@@ -4,9 +4,9 @@ members = ["crates/ems-core", "crates/cloud", "crates/gateway-sim"]
 
 [workspace.package]
 version = "0.1.0"
-edition = "2026"
+edition = "2021"
 license = "MIT"
-rust-version = "1.92"
+rust-version = "1.85"
 
 [workspace.dependencies]
 ems-core = { path = "crates/ems-core" }
